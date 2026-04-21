@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lesson Complete! – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+  <style>
+    body { overflow: hidden; }
+    .stars-bg {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+    .star {
+      position: absolute;
+      font-size: 1.5rem;
+      animation: star-float linear infinite;
+      opacity: 0.6;
+    }
+    @keyframes star-float {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0.8; }
+      100% { transform: translateY(-20px) rotate(360deg); opacity: 0; }
+    }
+    .complete-page { position: relative; z-index: 1; }
+    .result-ring {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      border: 8px solid var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem; margin: 0 auto 16px;
+      background: var(--primary-light);
+      animation: ring-pulse 1.5s ease infinite alternate;
+    }
+    @keyframes ring-pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+    .cstat-val.gold { color: var(--gold); }
+    .cstat-val.green { color: var(--primary); }
+    .cstat-val.blue { color: var(--secondary); }
+    .complete-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="stars-bg" id="stars-bg"></div>
+
+  <div class="complete-page">
+    <div class="result-ring" id="trophy-icon">🏆</div>
+    <h1 class="complete-title" id="complete-title">Lesson Complete!</h1>
+    <p class="complete-sub" id="complete-sub">Great job! You're making progress!</p>
+
+    <div class="complete-stats">
+      <div class="cstat">
+        <div class="cstat-val gold" id="stat-xp">+0</div>
+        <div class="cstat-lbl">⭐ XP Earned</div>
+      </div>
+      <div class="cstat">
+        <div class="cstat-val green" id="stat-acc">0%</div>
+        <div class="cstat-lbl">✅ Accuracy</div>
+      </div>
+      <div class="cstat">
+        <div class="cstat-val blue" id="stat-correct">0/0</div>
+        <div class="cstat-lbl">✔️ Correct</div>
+      </div>
+    </div>
+
+    <div class="complete-actions">
+      <a href="dashboard.html" class="btn btn-primary btn-hero">Continue →</a>
+      <a id="redo-btn" href="#" class="btn btn-outline">Practice Again 🔄</a>
+    </div>
+
+    <div id="badge-earned" style="display:none;margin-top:28px;text-align:center;">
+      <div style="font-size:3rem">🥇</div>
+      <div style="font-weight:800;color:var(--gold);font-size:1.1rem">Badge Unlocked: First Lesson!</div>
+    </div>
+  </div>
+
+  <script>
+    // Stars animation
+    const bg = document.getElementById('stars-bg');
+    const emojis = ['⭐','🌟','✨','🎉','🎊'];
+    for (let i = 0; i < 20; i++) {
+      const el = document.createElement('div');
+      el.className = 'star';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.animationDuration = (Math.random() * 4 + 3) + 's';
+      el.style.animationDelay = Math.random() * 4 + 's';
+      bg.appendChild(el);
+    }
+
+    const result = JSON.parse(localStorage.getItem('ll_last_result') || '{}');
+    if (result.xpEarned !== undefined) {
+      document.getElementById('stat-xp').textContent = '+' + result.xpEarned;
+      document.getElementById('stat-acc').textContent = result.accuracy + '%';
+      document.getElementById('stat-correct').textContent = result.correctCount + '/' + result.total;
+
+      if (result.accuracy === 100) {
+        document.getElementById('complete-title').textContent = 'Perfect Score! 🌟';
+        document.getElementById('trophy-icon').textContent = '🌟';
+      } else if (result.accuracy >= 70) {
+        document.getElementById('complete-title').textContent = 'Great Work! 🎉';
+      } else {
+        document.getElementById('complete-title').textContent = 'Lesson Done! 💪';
+        document.getElementById('complete-sub').textContent = 'Keep practicing to improve your accuracy!';
+      }
+
+      if (result.lessonId) {
+        document.getElementById('redo-btn').href = 'lesson.html?id=' + result.lessonId;
+      }
+    }
+
+    // Check for badge
+    const user = JSON.parse(localStorage.getItem('ll_user') || '{}');
+    if (user.badges && user.badges.includes('first_lesson') && (user.completedLessons || []).length === 1) {
+      document.getElementById('badge-earned').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

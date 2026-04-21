@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🦊</span>
+      <span class="logo-text">LinguaLeap</span>
+    </div>
+    <a href="dashboard.html" class="nav-item active"><span class="nav-icon">🏠</span> Home</a>
+    <a href="lessons.html" class="nav-item"><span class="nav-icon">📚</span> Lessons</a>
+    <a href="practice.html" class="nav-item"><span class="nav-icon">🎯</span> Practice</a>
+    <a href="leaderboard.html" class="nav-item"><span class="nav-icon">🏆</span> Leaderboard</a>
+    <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+    <a href="../index.html" class="nav-item" onclick="logout(event)"><span class="nav-icon">🚪</span> Log Out</a>
+
+    <div class="sidebar-streak">
+      <div class="streak-num" id="side-streak">0</div>
+      <div class="streak-label">🔥 Day Streak</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div class="dash-header">
+      <h1 id="greet-title">Good morning! 👋</h1>
+      <p id="greet-sub">Ready to learn today?</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-icon">⭐</div>
+        <div>
+          <div class="stat-val" id="stat-xp">0</div>
+          <div class="stat-lbl">Total XP</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔥</div>
+        <div>
+          <div class="stat-val" id="stat-streak">0</div>
+          <div class="stat-lbl">Day Streak</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📖</div>
+        <div>
+          <div class="stat-val" id="stat-lessons">0</div>
+          <div class="stat-lbl">Lessons Done</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div>
+          <div class="stat-val" id="stat-goal">0</div>
+          <div class="stat-lbl">Daily Goal XP</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily XP Progress -->
+    <div class="xp-section">
+      <h3>Today's Progress</h3>
+      <div class="xp-bar-wrap">
+        <div class="xp-bar-fill" id="daily-xp-bar" style="width:0%"></div>
+      </div>
+      <div class="xp-labels">
+        <span id="daily-xp-label">0 XP today</span>
+        <span id="daily-xp-goal">Goal: 20 XP</span>
+      </div>
+    </div>
+
+    <!-- Daily Lesson Recommendation -->
+    <div style="background:#fff3cd;border-radius:16px;padding:20px 24px;margin-bottom:28px;border:2px solid #ffc800;display:flex;align-items:center;gap:16px;">
+      <span style="font-size:2.5rem">⚡</span>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:1.05rem;">Continue where you left off</div>
+        <div style="color:#777;font-size:0.9rem;margin-top:3px;" id="rec-lesson-name">Loading...</div>
+      </div>
+      <a id="rec-lesson-link" href="lessons.html" class="btn btn-primary">Start →</a>
+    </div>
+
+    <!-- Units / Skill Tree -->
+    <div class="units-section">
+      <h2>📚 Learning Path</h2>
+      <div id="units-container"></div>
+    </div>
+  </main>
+</div>
+
+<script src="../js/data.js"></script>
+<script>
+  const user = JSON.parse(localStorage.getItem('ll_user') || 'null');
+  if (!user) window.location.href = 'login.html';
+
+  // Greet
+  const hour = new Date().getHours();
+  const greetMap = { morning: '☀️', afternoon: '🌤️', evening: '🌙' };
+  let tod = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+  document.getElementById('greet-title').textContent = `Good ${tod}, ${user.name.split(' ')[0]}! ${greetMap[tod]}`;
+  document.getElementById('greet-sub').textContent = user.streak > 1 ? `🔥 ${user.streak}-day streak! Keep it going!` : 'Start your streak today!';
+
+  // Stats
+  document.getElementById('stat-xp').textContent = user.xp || 0;
+  document.getElementById('stat-streak').textContent = user.streak || 0;
+  document.getElementById('stat-lessons').textContent = (user.completedLessons || []).length;
+  document.getElementById('stat-goal').textContent = user.goal || 20;
+  document.getElementById('side-streak').textContent = user.streak || 0;
+
+  // Daily XP bar
+  const todayXP = user.todayXP || 0;
+  const goal = parseInt(user.goal || 20);
+  const pct = Math.min(100, Math.round((todayXP / goal) * 100));
+  document.getElementById('daily-xp-bar').style.width = pct + '%';
+  document.getElementById('daily-xp-label').textContent = todayXP + ' XP today';
+  document.getElementById('daily-xp-goal').textContent = 'Goal: ' + goal + ' XP';
+
+  // Recommendation
+  const units = getUnitsForLevel(user.level || 'beginner');
+  const completed = user.completedLessons || [];
+  let nextLesson = null;
+  for (const unit of units) {
+    for (const lesson of unit.lessons) {
+      if (!completed.includes(lesson.id)) { nextLesson = lesson; break; }
+    }
+    if (nextLesson) break;
+  }
+  if (nextLesson) {
+    document.getElementById('rec-lesson-name').textContent = nextLesson.title;
+    document.getElementById('rec-lesson-link').href = `lesson.html?id=${nextLesson.id}`;
+  } else {
+    document.getElementById('rec-lesson-name').textContent = 'All lessons complete! Practice mode unlocked 🎉';
+    document.getElementById('rec-lesson-link').href = 'practice.html';
+    document.getElementById('rec-lesson-link').textContent = 'Practice →';
+  }
+
+  // Units
+  const container = document.getElementById('units-container');
+  units.forEach((unit, ui) => {
+    const firstLocked = unit.lessons.findIndex(l => !completed.includes(l.id));
+    const allDone = unit.lessons.every(l => completed.includes(l.id));
+
+    const div = document.createElement('div');
+    div.className = 'unit-card' + (ui > 0 && !completed.includes(units[ui-1].lessons[units[ui-1].lessons.length-1].id) ? ' locked' : '');
+    div.innerHTML = `
+      <div class="unit-header">
+        <span class="unit-icon">${unit.icon}</span>
+        <div>
+          <div class="unit-title">${unit.title}</div>
+          <div class="unit-desc">${unit.desc}</div>
+        </div>
+        ${allDone ? '<span style="margin-left:auto;font-size:1.5rem">✅</span>' : ''}
+      </div>
+      <div class="lessons-row" id="unit-${ui}-lessons"></div>
+    `;
+    container.appendChild(div);
+
+    const row = document.getElementById(`unit-${ui}-lessons`);
+    unit.lessons.forEach((lesson, li) => {
+      const isDone = completed.includes(lesson.id);
+      const isNext = !isDone && (li === 0 || completed.includes(unit.lessons[li-1].id));
+      const a = document.createElement('a');
+      a.href = isNext || isDone ? `lesson.html?id=${lesson.id}` : '#';
+      a.className = 'lesson-bubble' + (isDone ? ' completed' : !isNext ? ' locked' : '');
+      a.title = lesson.title;
+      a.textContent = isDone ? '⭐' : isNext ? lesson.icon : '🔒';
+      if (!isNext && !isDone) a.onclick = e => { e.preventDefault(); };
+      row.appendChild(a);
+    });
+  });
+
+  function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('ll_user');
+    window.location.href = '../index.html';
+  }
+</script>
+</body>
+</html>

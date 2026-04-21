@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Log In – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="logo-icon">🦊</span>
+      <span class="logo-text">LinguaLeap</span>
+    </div>
+    <h2>Welcome back!</h2>
+    <p class="sub">Continue your learning journey 🌟</p>
+
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" placeholder="you@example.com"/>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Your password"/>
+    </div>
+
+    <button class="btn btn-primary btn-block" onclick="handleLogin()">Log In</button>
+
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn btn-outline btn-block" onclick="demoLogin()" style="margin-top:10px;">
+        🎮 Try Demo (No Account Needed)
+      </button>
+    </div>
+
+    <div class="auth-switch">
+      New here? <a href="signup.html">Create a free account</a>
+    </div>
+    <div class="auth-switch" style="margin-top:8px;">
+      <a href="../index.html">← Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    function handleLogin() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) { alert('Please enter email and password.'); return; }
+      const user = JSON.parse(localStorage.getItem('ll_user') || 'null');
+      if (!user || user.email !== email) { alert('Account not found. Please sign up first!'); return; }
+      updateStreak(user);
+      window.location.href = 'dashboard.html';
+    }
+
+    function demoLogin() {
+      const demo = {
+        name: 'Demo Learner',
+        email: 'demo@lingualeap.com',
+        lang: 'hi',
+        level: 'beginner',
+        goal: '20',
+        xp: 120,
+        streak: 3,
+        lastLogin: new Date().toDateString(),
+        completedLessons: ['b-1-1', 'b-1-2'],
+        badges: ['first_lesson']
+      };
+      localStorage.setItem('ll_user', JSON.stringify(demo));
+      window.location.href = 'dashboard.html';
+    }
+
+    function updateStreak(user) {
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      if (user.lastLogin === yesterday) { user.streak = (user.streak || 0) + 1; }
+      else if (user.lastLogin !== today) { user.streak = 1; }
+      user.lastLogin = today;
+      localStorage.setItem('ll_user', JSON.stringify(user));
+    }
+  </script>
+</body>
+</html>

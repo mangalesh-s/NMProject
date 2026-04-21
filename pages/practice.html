@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Practice – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+  <style>
+    .practice-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .mode-card {
+      background: #fff; border-radius: var(--radius); padding: 24px; text-align: center;
+      box-shadow: var(--shadow); cursor: pointer; border: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .mode-card:hover { border-color: var(--primary); transform: translateY(-4px); }
+    .mode-card.selected { border-color: var(--primary); background: var(--primary-light); }
+    .mode-icon { font-size: 3rem; margin-bottom: 10px; }
+    .mode-title { font-weight: 800; font-size: 1.05rem; }
+    .mode-desc { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+    .quiz-container { max-width: 600px; margin: 0 auto; }
+    .timer-bar { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 20px; }
+    .timer-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.1s linear; }
+    .score-display { display: flex; gap: 20px; justify-content: center; font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🦊</span>
+      <span class="logo-text">LinguaLeap</span>
+    </div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+    <a href="lessons.html" class="nav-item"><span class="nav-icon">📚</span> Lessons</a>
+    <a href="practice.html" class="nav-item active"><span class="nav-icon">🎯</span> Practice</a>
+    <a href="leaderboard.html" class="nav-item"><span class="nav-icon">🏆</span> Leaderboard</a>
+    <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+    <a href="../index.html" class="nav-item" onclick="logout(event)"><span class="nav-icon">🚪</span> Log Out</a>
+    <div class="sidebar-streak">
+      <div class="streak-num" id="side-streak">0</div>
+      <div class="streak-label">🔥 Day Streak</div>
+    </div>
+  </aside>
+
+  <main class="main-content" id="main">
+    <!-- MODE SELECTION -->
+    <div id="mode-select-view">
+      <div class="dash-header">
+        <h1>🎯 Practice Mode</h1>
+        <p>Choose how you want to practice today</p>
+      </div>
+
+      <div class="practice-modes">
+        <div class="mode-card" onclick="startQuiz('quick')">
+          <div class="mode-icon">⚡</div>
+          <div class="mode-title">Quick Quiz</div>
+          <div class="mode-desc">10 random questions from all your lessons</div>
+        </div>
+        <div class="mode-card" onclick="startQuiz('timed')">
+          <div class="mode-icon">⏱️</div>
+          <div class="mode-title">Timed Challenge</div>
+          <div class="mode-desc">Answer as many as you can in 60 seconds!</div>
+        </div>
+        <div class="mode-card" onclick="startQuiz('vocab')">
+          <div class="mode-icon">📝</div>
+          <div class="mode-title">Vocabulary Drill</div>
+          <div class="mode-desc">Focus on word meanings and spelling</div>
+        </div>
+        <div class="mode-card" onclick="startQuiz('streak')">
+          <div class="mode-icon">🔥</div>
+          <div class="mode-title">Streak Master</div>
+          <div class="mode-desc">How many can you get right in a row?</div>
+        </div>
+      </div>
+
+      <!-- Recent practice stats -->
+      <div style="background:#fff;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+        <h3 style="font-family:var(--font-display);font-size:1.3rem;margin-bottom:16px">Your Stats</h3>
+        <div class="stats-bar">
+          <div class="stat-card">
+            <div class="stat-icon">⭐</div>
+            <div>
+              <div class="stat-val" id="p-xp">0</div>
+              <div class="stat-lbl">Total XP</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📖</div>
+            <div>
+              <div class="stat-val" id="p-lessons">0</div>
+              <div class="stat-lbl">Lessons Done</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div>
+              <div class="stat-val" id="p-streak">0</div>
+              <div class="stat-lbl">Day Streak</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUIZ VIEW -->
+    <div id="quiz-view" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <button onclick="endQuiz()" class="btn btn-ghost" style="padding:8px 16px;">← Back</button>
+        <div style="flex:1">
+          <div class="score-display">
+            <span>✅ <span id="q-correct">0</span></span>
+            <span>❌ <span id="q-wrong">0</span></span>
+            <span id="timer-display" style="color:var(--accent)"></span>
+          </div>
+        </div>
+      </div>
+      <div class="timer-bar" id="timer-bar" style="display:none">
+        <div class="timer-fill" id="timer-fill" style="width:100%"></div>
+      </div>
+
+      <div class="quiz-container">
+        <div id="q-num" style="font-size:0.85rem;font-weight:800;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;text-align:center"></div>
+        <div id="q-image" style="font-size:4rem;text-align:center;margin-bottom:12px"></div>
+        <div id="q-question" class="question-text" style="text-align:center;margin-bottom:24px"></div>
+        <div class="choices-grid" id="q-choices"></div>
+      </div>
+    </div>
+
+    <!-- RESULT VIEW -->
+    <div id="result-view" style="display:none;text-align:center;padding:40px 20px;">
+      <div style="font-size:5rem;margin-bottom:16px" id="result-emoji">🎉</div>
+      <div class="complete-title" id="result-title">Quiz Complete!</div>
+      <div class="complete-sub" id="result-sub">Great effort!</div>
+      <div class="complete-stats" id="result-stats"></div>
+      <div style="display:flex;gap:14px;justify-content:center;margin-top:24px;">
+        <button onclick="resetToModes()" class="btn btn-primary btn-hero">Try Again</button>
+        <a href="dashboard.html" class="btn btn-outline">Home</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="../js/data.js"></script>
+<script>
+  const user = JSON.parse(localStorage.getItem('ll_user') || 'null');
+  if (!user) window.location.href = 'login.html';
+
+  document.getElementById('side-streak').textContent = user.streak || 0;
+  document.getElementById('p-xp').textContent = user.xp || 0;
+  document.getElementById('p-lessons').textContent = (user.completedLessons || []).length;
+  document.getElementById('p-streak').textContent = user.streak || 0;
+
+  // Build a pool of all MC questions
+  function buildQuestionPool() {
+    const pool = [];
+    const units = getUnitsForLevel(user.level || 'beginner');
+    units.forEach(unit => {
+      unit.lessons.forEach(lesson => {
+        const qs = getLessonQuestions(lesson.id);
+        qs.filter(q => q.type === 'multiple_choice').forEach(q => pool.push(q));
+      });
+    });
+    return pool.sort(() => Math.random() - 0.5);
+  }
+
+  let quizPool = [];
+  let qIdx = 0;
+  let correct = 0, wrong = 0;
+  let quizMode = '';
+  let timerInterval = null;
+  let timeLeft = 60;
+  let streakCount = 0;
+  let maxStreak = 0;
+
+  function startQuiz(mode) {
+    quizMode = mode;
+    quizPool = buildQuestionPool();
+    if (mode === 'quick') quizPool = quizPool.slice(0, 10);
+    else if (mode === 'vocab') quizPool = quizPool.filter(q => q.image).slice(0, 10);
+    if (quizPool.length === 0) quizPool = buildQuestionPool().slice(0, 10);
+
+    qIdx = 0; correct = 0; wrong = 0; streakCount = 0; maxStreak = 0;
+
+    document.getElementById('mode-select-view').style.display = 'none';
+    document.getElementById('quiz-view').style.display = 'block';
+    document.getElementById('result-view').style.display = 'none';
+
+    if (mode === 'timed') {
+      timeLeft = 60;
+      document.getElementById('timer-bar').style.display = 'block';
+      document.getElementById('timer-display').textContent = '⏱ 60s';
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        const pct = (timeLeft / 60) * 100;
+        document.getElementById('timer-fill').style.width = pct + '%';
+        document.getElementById('timer-display').textContent = '⏱ ' + timeLeft + 's';
+        if (timeLeft <= 0) { clearInterval(timerInterval); showResult(); }
+      }, 1000);
+    }
+
+    renderPracticeQ();
+  }
+
+  function renderPracticeQ() {
+    if (quizMode !== 'timed' && qIdx >= quizPool.length) { showResult(); return; }
+    if (quizMode === 'timed' && qIdx >= quizPool.length) { qIdx = 0; }
+
+    const q = quizPool[qIdx % quizPool.length];
+    document.getElementById('q-num').textContent = quizMode === 'timed' ? `Score: ${correct}` : `Question ${qIdx + 1} of ${quizPool.length}`;
+    document.getElementById('q-image').textContent = q.image || '';
+    document.getElementById('q-question').textContent = q.question;
+    document.getElementById('q-correct').textContent = correct;
+    document.getElementById('q-wrong').textContent = wrong;
+
+    const choicesEl = document.getElementById('q-choices');
+    const letters = ['A','B','C','D'];
+    choicesEl.innerHTML = '';
+    q.choices.forEach((c, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.innerHTML = `<span class="choice-letter">${letters[i]}</span>${c}`;
+      btn.onclick = () => selectPracticeAnswer(i, q.answer, q.choices);
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function selectPracticeAnswer(idx, correct_idx, choices) {
+    const btns = document.querySelectorAll('.choice-btn');
+    btns.forEach(b => b.disabled = true);
+    btns[correct_idx].classList.add('correct');
+    if (idx !== correct_idx) {
+      btns[idx].classList.add('wrong');
+      wrong++;
+      streakCount = 0;
+    } else {
+      correct++;
+      streakCount++;
+      if (streakCount > maxStreak) maxStreak = streakCount;
+    }
+    document.getElementById('q-correct').textContent = correct;
+    document.getElementById('q-wrong').textContent = wrong;
+
+    setTimeout(() => { qIdx++; renderPracticeQ(); }, 800);
+  }
+
+  function showResult() {
+    clearInterval(timerInterval);
+    document.getElementById('quiz-view').style.display = 'none';
+    document.getElementById('result-view').style.display = 'block';
+
+    const total = correct + wrong;
+    const acc = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const xpGain = correct * 3;
+
+    // Save XP
+    const u = JSON.parse(localStorage.getItem('ll_user'));
+    u.xp = (u.xp || 0) + xpGain;
+    u.todayXP = (u.todayXP || 0) + xpGain;
+    localStorage.setItem('ll_user', JSON.stringify(u));
+
+    const emoji = acc >= 90 ? '🌟' : acc >= 70 ? '🎉' : acc >= 50 ? '👍' : '💪';
+    const title = acc >= 90 ? 'Outstanding!' : acc >= 70 ? 'Well Done!' : 'Keep Practicing!';
+
+    document.getElementById('result-emoji').textContent = emoji;
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('result-sub').textContent = `You earned +${xpGain} XP!`;
+    document.getElementById('result-stats').innerHTML = `
+      <div class="cstat"><div class="cstat-val" style="color:var(--primary)">${correct}</div><div class="cstat-lbl">✅ Correct</div></div>
+      <div class="cstat"><div class="cstat-val" style="color:var(--accent)">${wrong}</div><div class="cstat-lbl">❌ Wrong</div></div>
+      <div class="cstat"><div class="cstat-val" style="color:var(--gold)">${acc}%</div><div class="cstat-lbl">🎯 Accuracy</div></div>
+      ${quizMode === 'streak' ? `<div class="cstat"><div class="cstat-val" style="color:var(--accent-orange)">${maxStreak}</div><div class="cstat-lbl">🔥 Best Streak</div></div>` : ''}
+    `;
+  }
+
+  function endQuiz() {
+    clearInterval(timerInterval);
+    resetToModes();
+  }
+
+  function resetToModes() {
+    document.getElementById('mode-select-view').style.display = 'block';
+    document.getElementById('quiz-view').style.display = 'none';
+    document.getElementById('result-view').style.display = 'none';
+    document.getElementById('timer-bar').style.display = 'none';
+  }
+
+  function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('ll_user');
+    window.location.href = '../index.html';
+  }
+</script>
+</body>
+</html>

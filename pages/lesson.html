@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lesson – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+  <style>
+    body { background: #f7f7f7; }
+    .lesson-body { padding-bottom: 100px; }
+    .confetti-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+    .confetti-piece {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body class="lesson-page">
+
+  <!-- TOP BAR -->
+  <div class="lesson-topbar">
+    <button class="close-btn" onclick="confirmExit()">✕</button>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+    <div class="hearts" id="hearts-display">❤️❤️❤️</div>
+  </div>
+
+  <!-- LESSON BODY -->
+  <div class="lesson-body" id="lesson-body">
+    <div style="text-align:center;padding:80px 20px;">
+      <div style="font-size:3rem">⏳</div>
+      <p style="color:#777;margin-top:12px;">Loading lesson...</p>
+    </div>
+  </div>
+
+  <!-- FEEDBACK BAR -->
+  <div class="feedback-bar" id="feedback-bar">
+    <div id="feedback-left" style="display:flex;align-items:center;gap:14px;display:none">
+      <div class="feedback-icon" id="feedback-icon"></div>
+      <div>
+        <div class="feedback-msg" id="feedback-msg"></div>
+        <div class="feedback-sub" id="feedback-sub"></div>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <button class="check-btn" id="check-btn" onclick="handleCheck()">CHECK</button>
+  </div>
+
+  <div class="confetti-wrap" id="confetti-wrap"></div>
+
+  <script src="../js/data.js"></script>
+  <script>
+    const user = JSON.parse(localStorage.getItem('ll_user') || 'null');
+    if (!user) window.location.href = 'login.html';
+
+    const params = new URLSearchParams(window.location.search);
+    const lessonId = params.get('id') || 'b-1-1';
+    const questions = getLessonQuestions(lessonId);
+
+    let currentQ = 0;
+    let hearts = 3;
+    let correctCount = 0;
+    let xpEarned = 0;
+    let selectedAnswer = null;
+    let answered = false;
+    let wordArrangeSelected = [];
+
+    function updateProgress() {
+      const pct = (currentQ / questions.length) * 100;
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('hearts-display').textContent = '❤️'.repeat(hearts) + '🖤'.repeat(Math.max(0, 3 - hearts));
+    }
+
+    function renderQuestion() {
+      selectedAnswer = null;
+      wordArrangeSelected = [];
+      answered = false;
+      updateProgress();
+
+      const q = questions[currentQ];
+      const body = document.getElementById('lesson-body');
+      const fb = document.getElementById('feedback-bar');
+      fb.className = 'feedback-bar';
+      document.getElementById('feedback-left').style.display = 'none';
+
+      const checkBtn = document.getElementById('check-btn');
+      checkBtn.textContent = 'CHECK';
+      checkBtn.className = 'check-btn';
+
+      let html = `<div class="question-type">Question ${currentQ + 1} of ${questions.length}</div>`;
+      if (q.image) html += `<div class="question-img">${q.image}</div>`;
+      html += `<div class="question-text">${q.question}</div>`;
+
+      if (q.type === 'multiple_choice') {
+        html += `<div class="choices-grid" id="choices">`;
+        const letters = ['A','B','C','D'];
+        q.choices.forEach((c, i) => {
+          html += `<button class="choice-btn" onclick="selectChoice(${i})" id="choice-${i}">
+            <span class="choice-letter">${letters[i]}</span>${c}
+          </button>`;
+        });
+        html += `</div>`;
+      } else if (q.type === 'type_answer') {
+        html += `<input type="text" class="type-input" id="type-input" placeholder="Type your answer here..." oninput="onTypeInput()" />`;
+        if (q.hint) html += `<p class="question-sub">💡 Hint: ${q.hint}</p>`;
+      } else if (q.type === 'word_arrange') {
+        html += `<div class="answer-area" id="answer-area"><span style="color:#ccc;font-size:0.9rem">Tap words to build the sentence</span></div>`;
+        const shuffled = [...q.words].sort(() => Math.random() - 0.5);
+        html += `<div class="word-bank" id="word-bank">`;
+        shuffled.forEach((w, i) => {
+          html += `<button class="word-token" id="wt-${i}" onclick="selectWord('${w}', ${i})">${w}</button>`;
+        });
+        html += `</div>`;
+      }
+
+      body.innerHTML = html;
+
+      if (q.type === 'type_answer') {
+        document.getElementById('type-input').focus();
+      }
+    }
+
+    function selectChoice(idx) {
+      if (answered) return;
+      selectedAnswer = idx;
+      document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById('choice-' + idx).classList.add('selected');
+      document.getElementById('check-btn').className = 'check-btn active';
+    }
+
+    function onTypeInput() {
+      const val = document.getElementById('type-input').value.trim();
+      document.getElementById('check-btn').className = val ? 'check-btn active' : 'check-btn';
+    }
+
+    function selectWord(word, idx) {
+      if (answered) return;
+      const token = document.getElementById('wt-' + idx);
+      if (token.classList.contains('used')) {
+        // Remove from answer
+        wordArrangeSelected = wordArrangeSelected.filter(w => w !== word + '_' + idx);
+        token.classList.remove('used');
+      } else {
+        wordArrangeSelected.push(word + '_' + idx);
+        token.classList.add('used');
+      }
+
+      const area = document.getElementById('answer-area');
+      if (wordArrangeSelected.length === 0) {
+        area.innerHTML = '<span style="color:#ccc;font-size:0.9rem">Tap words to build the sentence</span>';
+      } else {
+        area.innerHTML = wordArrangeSelected.map(w => {
+          const parts = w.split('_');
+          const wrd = parts.slice(0, -1).join('_');
+          const id = parts[parts.length - 1];
+          return `<span class="answer-token" onclick="removeWord('${wrd}', ${id})">${wrd}</span>`;
+        }).join('');
+      }
+      document.getElementById('check-btn').className = wordArrangeSelected.length > 0 ? 'check-btn active' : 'check-btn';
+    }
+
+    function removeWord(word, idx) {
+      if (answered) return;
+      wordArrangeSelected = wordArrangeSelected.filter(w => w !== word + '_' + idx);
+      const token = document.getElementById('wt-' + idx);
+      if (token) token.classList.remove('used');
+
+      const area = document.getElementById('answer-area');
+      if (wordArrangeSelected.length === 0) {
+        area.innerHTML = '<span style="color:#ccc;font-size:0.9rem">Tap words to build the sentence</span>';
+      } else {
+        area.innerHTML = wordArrangeSelected.map(w => {
+          const parts = w.split('_');
+          const wrd = parts.slice(0,-1).join('_');
+          const id = parts[parts.length-1];
+          return `<span class="answer-token" onclick="removeWord('${wrd}', ${id})">${wrd}</span>`;
+        }).join('');
+      }
+    }
+
+    function handleCheck() {
+      const checkBtn = document.getElementById('check-btn');
+      if (!checkBtn.classList.contains('active')) return;
+
+      const q = questions[currentQ];
+      let isCorrect = false;
+
+      if (q.type === 'multiple_choice') {
+        isCorrect = selectedAnswer === q.answer;
+        document.querySelectorAll('.choice-btn').forEach((b, i) => {
+          if (i === q.answer) b.classList.add('correct');
+          else if (i === selectedAnswer && !isCorrect) b.classList.add('wrong');
+          b.disabled = true;
+        });
+      } else if (q.type === 'type_answer') {
+        const val = document.getElementById('type-input').value.trim().toLowerCase();
+        isCorrect = val === q.answer.toLowerCase();
+        const input = document.getElementById('type-input');
+        input.classList.add(isCorrect ? 'correct' : 'wrong');
+        input.disabled = true;
+      } else if (q.type === 'word_arrange') {
+        const arranged = wordArrangeSelected.map(w => w.split('_').slice(0,-1).join('_'));
+        isCorrect = JSON.stringify(arranged) === JSON.stringify(q.answer);
+        const area = document.getElementById('answer-area');
+        area.style.border = `2.5px solid ${isCorrect ? 'var(--primary)' : 'var(--accent)'}`;
+        area.style.background = isCorrect ? 'var(--primary-light)' : '#ffe0e0';
+      }
+
+      answered = true;
+
+      if (isCorrect) {
+        correctCount++;
+        xpEarned += 2;
+        showFeedback(true);
+        if (isCorrect) spawnConfetti();
+      } else {
+        hearts--;
+        showFeedback(false, q);
+        if (hearts <= 0) {
+          setTimeout(() => {
+            alert('💔 No hearts left! Restarting lesson...');
+            hearts = 3; correctCount = 0; xpEarned = 0; currentQ = 0;
+            renderQuestion();
+          }, 1500);
+          return;
+        }
+      }
+
+      checkBtn.textContent = currentQ < questions.length - 1 ? 'CONTINUE' : 'FINISH';
+      checkBtn.className = 'check-btn active';
+      checkBtn.onclick = nextQuestion;
+      updateProgress();
+    }
+
+    function showFeedback(correct, q) {
+      const fb = document.getElementById('feedback-bar');
+      const left = document.getElementById('feedback-left');
+      fb.className = 'feedback-bar ' + (correct ? 'correct' : 'wrong');
+      document.getElementById('feedback-icon').textContent = correct ? '🎉' : '💔';
+      document.getElementById('feedback-msg').textContent = correct ? 'Excellent!' : 'Incorrect!';
+      document.getElementById('feedback-msg').className = 'feedback-msg ' + (correct ? 'correct' : 'wrong');
+
+      if (!correct && q) {
+        let correctAns = '';
+        if (q.type === 'multiple_choice') correctAns = q.choices[q.answer];
+        else if (q.type === 'type_answer') correctAns = q.answer;
+        else if (q.type === 'word_arrange') correctAns = q.answer.join(' ');
+        document.getElementById('feedback-sub').textContent = 'Correct answer: ' + correctAns;
+      } else {
+        document.getElementById('feedback-sub').textContent = correct ? '+2 XP earned! Keep going!' : '';
+      }
+      left.style.display = 'flex';
+    }
+
+    function nextQuestion() {
+      currentQ++;
+      if (currentQ >= questions.length) {
+        completeLesson();
+      } else {
+        document.getElementById('check-btn').onclick = handleCheck;
+        renderQuestion();
+      }
+    }
+
+    function completeLesson() {
+      // Save progress
+      const u = JSON.parse(localStorage.getItem('ll_user'));
+      if (!u.completedLessons) u.completedLessons = [];
+      if (!u.completedLessons.includes(lessonId)) {
+        u.completedLessons.push(lessonId);
+      }
+      u.xp = (u.xp || 0) + xpEarned;
+      u.todayXP = (u.todayXP || 0) + xpEarned;
+      if (!u.badges) u.badges = [];
+      if (u.completedLessons.length === 1 && !u.badges.includes('first_lesson')) {
+        u.badges.push('first_lesson');
+      }
+      localStorage.setItem('ll_user', JSON.stringify(u));
+
+      const accuracy = Math.round((correctCount / questions.length) * 100);
+      localStorage.setItem('ll_last_result', JSON.stringify({ xpEarned, correctCount, total: questions.length, accuracy, lessonId }));
+      window.location.href = 'complete.html';
+    }
+
+    function confirmExit() {
+      if (confirm('Are you sure you want to quit this lesson? Progress will be lost.')) {
+        window.location.href = 'dashboard.html';
+      }
+    }
+
+    function spawnConfetti() {
+      const wrap = document.getElementById('confetti-wrap');
+      const colors = ['#58cc02','#1cb0f6','#ff4b4b','#ffc800','#ce82ff','#ff9600'];
+      for (let i = 0; i < 30; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.style.left = Math.random() * 100 + 'vw';
+        el.style.top = '-20px';
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        el.style.animationDuration = (Math.random() * 1 + 0.8) + 's';
+        el.style.animationDelay = Math.random() * 0.3 + 's';
+        wrap.appendChild(el);
+        setTimeout(() => el.remove(), 2000);
+      }
+    }
+
+    // Start
+    renderQuestion();
+  </script>
+</body>
+</html>

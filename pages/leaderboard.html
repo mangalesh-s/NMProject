@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Leaderboard – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+  <style>
+    .lb-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .lb-tab { flex: 1; padding: 10px; text-align: center; background: #fff; border: 2px solid var(--border); border-radius: var(--radius-pill); font-weight: 800; cursor: pointer; transition: all 0.15s; }
+    .lb-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .lb-you { background: #fff8d6 !important; border: 2px solid var(--gold) !important; }
+    .league-badge { text-align: center; padding: 20px; margin-bottom: 20px; background: linear-gradient(135deg, #ffd700, #ff9600); border-radius: var(--radius); color: #fff; }
+    .league-icon { font-size: 3rem; }
+    .league-name { font-family: var(--font-display); font-size: 1.5rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🦊</span>
+      <span class="logo-text">LinguaLeap</span>
+    </div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+    <a href="lessons.html" class="nav-item"><span class="nav-icon">📚</span> Lessons</a>
+    <a href="practice.html" class="nav-item"><span class="nav-icon">🎯</span> Practice</a>
+    <a href="leaderboard.html" class="nav-item active"><span class="nav-icon">🏆</span> Leaderboard</a>
+    <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+    <a href="../index.html" class="nav-item" onclick="logout(event)"><span class="nav-icon">🚪</span> Log Out</a>
+    <div class="sidebar-streak">
+      <div class="streak-num" id="side-streak">0</div>
+      <div class="streak-label">🔥 Day Streak</div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="dash-header">
+      <h1>🏆 Leaderboard</h1>
+      <p>See how you rank against other learners</p>
+    </div>
+
+    <div class="league-badge">
+      <div class="league-icon">🥇</div>
+      <div class="league-name">Gold League</div>
+      <div style="font-size:0.9rem;opacity:0.9;margin-top:4px">Top 10 advance to Diamond League next week!</div>
+    </div>
+
+    <div class="lb-tabs">
+      <div class="lb-tab active" onclick="showTab('weekly')">This Week</div>
+      <div class="lb-tab" onclick="showTab('monthly')">This Month</div>
+      <div class="lb-tab" onclick="showTab('alltime')">All Time</div>
+    </div>
+
+    <div class="leaderboard-wrap" style="padding:0;max-width:100%">
+      <div id="lb-list"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const user = JSON.parse(localStorage.getItem('ll_user') || 'null');
+  if (!user) window.location.href = 'login.html';
+  document.getElementById('side-streak').textContent = user.streak || 0;
+
+  const avatars = ['🦊','🐼','🦁','🐯','🐸','🦋','🐧','🦄','🐺','🦅','🐻','🐨'];
+  const names = ['Priya S.','Carlos M.','Mei Lin','Fatima A.','Arjun K.','Sofia B.','Kenji T.','Aisha R.','Marco V.','Lakshmi P.','Ahmed H.','Nina W.'];
+
+  function generateLeaderboard(type) {
+    const multipliers = { weekly: 1, monthly: 5, alltime: 20 };
+    const m = multipliers[type] || 1;
+    const others = names.map((n, i) => ({
+      name: n,
+      avatar: avatars[i],
+      xp: Math.floor(Math.random() * 400 + 50) * m,
+      isYou: false
+    }));
+
+    // Insert user
+    const userXp = (user.xp || 0) * (type === 'weekly' ? 1 : type === 'monthly' ? 3 : 10);
+    others.push({ name: user.name, avatar: '🦊', xp: userXp, isYou: true });
+    others.sort((a, b) => b.xp - a.xp);
+    return others;
+  }
+
+  function showTab(type) {
+    document.querySelectorAll('.lb-tab').forEach((t, i) => {
+      t.className = 'lb-tab' + (['weekly','monthly','alltime'][i] === type ? ' active' : '');
+    });
+    renderLeaderboard(type);
+  }
+
+  function renderLeaderboard(type) {
+    const lb = generateLeaderboard(type);
+    const list = document.getElementById('lb-list');
+    const rankIcons = ['🥇','🥈','🥉'];
+
+    list.innerHTML = lb.map((entry, i) => `
+      <div class="lb-row ${entry.isYou ? 'lb-you' : ''}">
+        <div class="lb-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">
+          ${i < 3 ? rankIcons[i] : '#' + (i + 1)}
+        </div>
+        <div class="lb-avatar">${entry.avatar}</div>
+        <div class="lb-name">${entry.name}${entry.isYou ? ' <span style="color:var(--secondary);font-size:0.8rem">(You)</span>' : ''}</div>
+        <div class="lb-xp">⭐ ${entry.xp.toLocaleString()} XP</div>
+      </div>
+    `).join('');
+  }
+
+  function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('ll_user');
+    window.location.href = '../index.html';
+  }
+
+  renderLeaderboard('weekly');
+</script>
+</body>
+</html>

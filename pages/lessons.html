@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lessons – LinguaLeap</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🦊</span>
+      <span class="logo-text">LinguaLeap</span>
+    </div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+    <a href="lessons.html" class="nav-item active"><span class="nav-icon">📚</span> Lessons</a>
+    <a href="practice.html" class="nav-item"><span class="nav-icon">🎯</span> Practice</a>
+    <a href="leaderboard.html" class="nav-item"><span class="nav-icon">🏆</span> Leaderboard</a>
+    <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+    <a href="../index.html" class="nav-item" onclick="logout(event)"><span class="nav-icon">🚪</span> Log Out</a>
+    <div class="sidebar-streak">
+      <div class="streak-num" id="side-streak">0</div>
+      <div class="streak-label">🔥 Day Streak</div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="dash-header">
+      <h1>📚 All Lessons</h1>
+      <p id="level-label">Your level: <strong>Beginner</strong></p>
+    </div>
+
+    <!-- Level switcher -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:28px;">
+      <button class="btn btn-outline" onclick="switchLevel('beginner')">🌱 Beginner</button>
+      <button class="btn btn-outline" onclick="switchLevel('elementary')">📗 Elementary</button>
+      <button class="btn btn-outline" onclick="switchLevel('intermediate')">📘 Intermediate</button>
+      <button class="btn btn-outline" onclick="switchLevel('advanced')">📙 Advanced</button>
+    </div>
+
+    <div class="units-section">
+      <div id="units-container"></div>
+    </div>
+  </main>
+</div>
+
+<script src="../js/data.js"></script>
+<script>
+  const user = JSON.parse(localStorage.getItem('ll_user') || 'null');
+  if (!user) window.location.href = 'login.html';
+
+  document.getElementById('side-streak').textContent = user.streak || 0;
+  let currentLevel = user.level || 'beginner';
+
+  function renderUnits(level) {
+    document.getElementById('level-label').innerHTML = `Your level: <strong style="text-transform:capitalize">${level}</strong>`;
+    const units = getUnitsForLevel(level);
+    const completed = user.completedLessons || [];
+    const container = document.getElementById('units-container');
+    container.innerHTML = '';
+
+    units.forEach((unit, ui) => {
+      const prevUnit = ui > 0 ? units[ui-1] : null;
+      const unitUnlocked = !prevUnit || prevUnit.lessons.every(l => completed.includes(l.id));
+      const allDone = unit.lessons.every(l => completed.includes(l.id));
+
+      const div = document.createElement('div');
+      div.className = 'unit-card' + (!unitUnlocked ? ' locked' : '');
+      div.innerHTML = `
+        <div class="unit-header">
+          <span class="unit-icon">${unit.icon}</span>
+          <div style="flex:1">
+            <div class="unit-title">${unit.title} ${!unitUnlocked ? '🔒' : ''}</div>
+            <div class="unit-desc">${unit.desc}</div>
+          </div>
+          <div style="font-size:0.85rem;color:#777;font-weight:700">${completed.filter(id => unit.lessons.map(l=>l.id).includes(id)).length}/${unit.lessons.length} done</div>
+        </div>
+        <div class="lessons-row" id="unit-${ui}-lessons"></div>
+      `;
+      container.appendChild(div);
+
+      const row = document.getElementById(`unit-${ui}-lessons`);
+      unit.lessons.forEach((lesson, li) => {
+        const isDone = completed.includes(lesson.id);
+        const prevLessonDone = li === 0 || completed.includes(unit.lessons[li-1].id);
+        const isUnlocked = unitUnlocked && prevLessonDone;
+
+        const a = document.createElement('a');
+        a.className = 'lesson-bubble' + (isDone ? ' completed' : !isUnlocked ? ' locked' : '');
+        a.title = lesson.title + (isDone ? ' ✅' : !isUnlocked ? ' 🔒' : ' (' + lesson.xp + ' XP)');
+        a.textContent = isDone ? '⭐' : !isUnlocked ? '🔒' : lesson.icon;
+        if (isUnlocked || isDone) {
+          a.href = `lesson.html?id=${lesson.id}`;
+        } else {
+          a.href = '#';
+          a.onclick = e => { e.preventDefault(); alert('Complete the previous lesson to unlock this one!'); };
+        }
+        row.appendChild(a);
+      });
+    });
+  }
+
+  function switchLevel(level) {
+    currentLevel = level;
+    renderUnits(level);
+  }
+
+  function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('ll_user');
+    window.location.href = '../index.html';
+  }
+
+  renderUnits(currentLevel);
+</script>
+</body>
+</html>
